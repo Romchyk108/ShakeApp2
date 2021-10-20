@@ -13,6 +13,8 @@ enum MessagesUserDefaults{
 
 class SettingViewController: UIViewController {
 
+    var game: Game!
+    
     @IBOutlet weak var tableView: UITableView!{
         didSet{
             tableView.delegate = self
@@ -28,9 +30,9 @@ class SettingViewController: UIViewController {
                 if newMessage != ""{
                     self.ArrMessage.append(newMessage)
                     self.delegate?.update(arrMessage: self.ArrMessage)
-                    print(self.ArrMessage)
+                    print("ArrMessage - \(ArrMessage)")
                     self.tableView.reloadData()
-                    defaults.setValue(newMessage, forKey: MessagesUserDefaults.KeyNoConnectionMessage)
+                    //defaults.setValue(newMessage, forKey: MessagesUserDefaults.KeyNoConnectionMessage)
                 }
             }
         })
@@ -50,9 +52,8 @@ class SettingViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        game = Game() //defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)
 
-        //tableView.reloadData()
-        // Do any additional setup after loading the view.
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -76,7 +77,7 @@ class SettingViewController: UIViewController {
 extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return ArrMessage.count
+        return ArrMessage.count //ArrMessage.count
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -88,8 +89,7 @@ extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
         let cell = self.tableView.dequeueReusableCell(withIdentifier: "MyCell", for: indexPath as IndexPath) as UITableViewCell
         
         //let arr = ArrMessage[indexPath.row]
-        cell.textLabel?.text = String(ArrMessage[indexPath.row])
-        //cell.textLabel?.text = String(UserDefaults.string(<#T##self: UserDefaults##UserDefaults#>))
+        cell.textLabel?.text = String(ArrMessage[indexPath.row])// ArrMessage[indexPath.row])
         print("TableView")
         
         return cell
@@ -105,8 +105,7 @@ extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
             
             tableView.deleteRows(at: [indexPath], with: .fade)
             ArrMessage.remove(at: indexPath.row)
-            self.delegate?.update(arrMessage: self.ArrMessage)
-            
+            self.delegate?.update(arrMessage: ArrMessage)
             tableView.endUpdates()
         }
     }
