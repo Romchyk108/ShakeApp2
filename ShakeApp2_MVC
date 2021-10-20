@@ -1,0 +1,390 @@
+diff --git a/Info.plist b/Info.plist
+index 192ee54..deb2043 100644
+--- a/Info.plist
++++ b/Info.plist
+@@ -15,7 +15,7 @@
+ 	<key>CFBundlePackageType</key>
+ 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+ 	<key>CFBundleShortVersionString</key>
+-	<string>1.0</string>
++	<string>$(MARKETING_VERSION)</string>
+ 	<key>CFBundleVersion</key>
+ 	<string>1</string>
+ 	<key>LSRequiresIPhoneOS</key>
+diff --git a/SettingViewController.swift b/SettingViewController.swift
+index 2bd1988..46569ff 100644
+--- a/SettingViewController.swift
++++ b/SettingViewController.swift
+@@ -13,6 +13,8 @@ enum MessagesUserDefaults{
+ 
+ class SettingViewController: UIViewController {
+ 
++    var game: Game!
++    
+     @IBOutlet weak var tableView: UITableView!{
+         didSet{
+             tableView.delegate = self
+@@ -28,9 +30,9 @@ class SettingViewController: UIViewController {
+                 if newMessage != ""{
+                     self.ArrMessage.append(newMessage)
+                     self.delegate?.update(arrMessage: self.ArrMessage)
+-                    print(self.ArrMessage)
++                    print("ArrMessage - \(ArrMessage)")
+                     self.tableView.reloadData()
+-                    defaults.setValue(newMessage, forKey: MessagesUserDefaults.KeyNoConnectionMessage)
++                    //defaults.setValue(newMessage, forKey: MessagesUserDefaults.KeyNoConnectionMessage)
+                 }
+             }
+         })
+@@ -50,9 +52,8 @@ class SettingViewController: UIViewController {
+     
+     override func viewDidLoad() {
+         super.viewDidLoad()
++        game = Game() //defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)
+ 
+-        //tableView.reloadData()
+-        // Do any additional setup after loading the view.
+     }
+     
+     override func viewWillAppear(_ animated: Bool) {
+@@ -76,7 +77,7 @@ class SettingViewController: UIViewController {
+ extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
+     
+     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+-        return ArrMessage.count
++        return ArrMessage.count //ArrMessage.count
+     }
+     
+     func numberOfSections(in tableView: UITableView) -> Int {
+@@ -88,8 +89,7 @@ extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
+         let cell = self.tableView.dequeueReusableCell(withIdentifier: "MyCell", for: indexPath as IndexPath) as UITableViewCell
+         
+         //let arr = ArrMessage[indexPath.row]
+-        cell.textLabel?.text = String(ArrMessage[indexPath.row])
+-        //cell.textLabel?.text = String(UserDefaults.string(<#T##self: UserDefaults##UserDefaults#>))
++        cell.textLabel?.text = String(ArrMessage[indexPath.row])// ArrMessage[indexPath.row])
+         print("TableView")
+         
+         return cell
+@@ -105,8 +105,7 @@ extension SettingViewController: UITableViewDataSource, UITableViewDelegate{
+             
+             tableView.deleteRows(at: [indexPath], with: .fade)
+             ArrMessage.remove(at: indexPath.row)
+-            self.delegate?.update(arrMessage: self.ArrMessage)
+-            
++            self.delegate?.update(arrMessage: ArrMessage)
+             tableView.endUpdates()
+         }
+     }
+diff --git a/ShakeGame.swift b/ShakeGame.swift
+index c9085dd..8317e8a 100644
+--- a/ShakeGame.swift
++++ b/ShakeGame.swift
+@@ -6,19 +6,101 @@
+ //
+ 
+ import Foundation
++import Alamofire
++import SwiftyJSON
++import SystemConfiguration
+ 
+-class Game{
+-    var count :Int = 0
+-    var message : [String] = ["Just do it!", "Change your mind"]
++protocol gameProtocol {
++    var message: [String] {get}
++    var isConnected: Bool {get}
++    var messageFromAPI: String {get}
++    func Parser()
++    func checkNetwork() -> String
++    func addMessage(text: String?) -> ([String])
++}
++
++public class Game: gameProtocol {
+     
+-    func addMessage (text : String?) -> ([String]){
++    func addMessage (text: String?) -> ([String]){
+         if text != "" {
+             message.append(text!)
+         }
+         return message
+     }
+     
+-    init(newMessage: String) {
+-        self.message = [newMessage]
++    var isConnected: Bool = false
++    var count: Int = 0
++    var message: [String] = []
++    var messageFromAPI: String = "Shake me (from API)"
++    let url: String = "https://8ball.delegator.com/magic/JSON/%3Cquestion_string%3E"
++    let question: String = ""
++    let answer: String = ""
++    let type: String = ""
++    let magic: String = ""
++  
++    // проверка на подключение к сети интернет
++    @objc public func checkNetwork() -> String {
++        if Reachability.isConnected(){
++            print("is connected")
++            isConnected = true
++            return "is connected"
++        } else {
++            print("not connected")
++            isConnected = false
++            return "No connection"
++        }
++    }
++    
++    //      опрос API и обработка ответа
++    func Parser() {
++        let url = url
++        let param = ["question": self.question,
++                     "answer" : self.answer,
++                     "type": self.type ]
++
++        AF.request(url, method: .get, parameters: param).responseJSON { [self]responds in
++            switch responds.result{
++            case .success(let value):
++                let json = JSON(value)
++                //print("1 - \(json)")
++                let result: Dictionary<String, JSON> = json["magic"].dictionaryValue
++                let result2: String = result["answer"]!.stringValue
++                print("2 - \(result2)")
++                messageFromAPI = result2
++                print("message - \(messageFromAPI)")
++            case .failure(let error):
++                print(error)
++            }
++        }
++    }
++}
++
++
++
++
++public class Reachability {
++    
++    class func isConnected() -> Bool {
++        
++        var noAddress = sockaddr_in(sin_len: 0, sin_family: 0, sin_port: 0, sin_addr: in_addr(s_addr: 0), sin_zero: (0, 0, 0, 0, 0, 0, 0, 0))
++        noAddress.sin_len = UInt8(MemoryLayout.size(ofValue: noAddress))
++        noAddress.sin_family = sa_family_t(AF_INET)
++        
++        let defaultRouteReachability = withUnsafePointer(to: &noAddress) {
++            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {noSockAddress in
++                SCNetworkReachabilityCreateWithAddress(nil, noSockAddress)
++            }
++        }
++        
++        var flags: SCNetworkReachabilityFlags = SCNetworkReachabilityFlags(rawValue: 0)
++        if SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) == false {
++            return false
++        }
++        
++        let isReachable = (flags.rawValue & UInt32(kSCNetworkFlagsReachable)) != 0
++        let needsConnection = (flags.rawValue & UInt32(kSCNetworkFlagsConnectionRequired)) != 0
++        let ret = (isReachable && !needsConnection)
++        
++        return ret
+     }
+ }
+diff --git a/ViewController.swift b/ViewController.swift
+index 9d17847..8ae776f 100644
+--- a/ViewController.swift
++++ b/ViewController.swift
+@@ -6,106 +6,62 @@
+ //
+ 
+ import UIKit
+-import Alamofire
+-import SwiftyJSON
+ import SystemConfiguration
+-//import ReachabilitySwift
+ 
+-public class Reachability {
+-    
+-    class func isConnected() -> Bool {
+-        
+-        var noAddress = sockaddr_in(sin_len: 0, sin_family: 0, sin_port: 0, sin_addr: in_addr(s_addr: 0), sin_zero: (0, 0, 0, 0, 0, 0, 0, 0))
+-        noAddress.sin_len = UInt8(MemoryLayout.size(ofValue: noAddress))
+-        noAddress.sin_family = sa_family_t(AF_INET)
+-        
+-        let defaultRouteReachability = withUnsafePointer(to: &noAddress) {
+-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {noSockAddress in
+-                SCNetworkReachabilityCreateWithAddress(nil, noSockAddress)
+-            }
+-        }
+-        
+-        var flags: SCNetworkReachabilityFlags = SCNetworkReachabilityFlags(rawValue: 0)
+-        if SCNetworkReachabilityGetFlags(defaultRouteReachability!, &flags) == false {
+-            return false
+-        }
+-        
+-        let isReachable = (flags.rawValue & UInt32(kSCNetworkFlagsReachable)) != 0
+-        let needsConnection = (flags.rawValue & UInt32(kSCNetworkFlagsConnectionRequired)) != 0
+-        let ret = (isReachable && !needsConnection)
+-        
+-        return ret
+-    }
+-}
+ 
+ protocol ViewControllerDelegate {
+     func update(arrMessage: [String])
+ }
+ 
+-class ViewController: UIViewController, ViewControllerDelegate {
++class ViewController: UIViewController, ViewControllerDelegate{
++
++    var isConnected: Bool = false
++    var game: Game!
++    var gameProtocol: gameProtocol?
++    
+     func update(arrMessage: [String]) {
+         message = arrMessage
+     }
+     
+-    @objc public func checkNetwork() {
+-        if Reachability.isConnected(){
+-            print("is connected")
+-            statusNetwork.text = "Is connected"
++    @objc public func checkNetwork2() {
++        if game.isConnected {
++            statusNetwork.text = game.checkNetwork()
+             Message.isHidden = true
+         } else {
+-            print("not connected")
+-            statusNetwork.text = "No connection"
++            statusNetwork.text = game.checkNetwork()
+             Message.isHidden = false
+         }
+     }
+-    
+-    func Parser(url: String, parameters: [String: String]){
+-
+-        AF.request(url, method: .get, parameters: parameters).responseJSON {responds in
+-            //print("result - \(responds.result)")
+-            switch responds.result{
+-            case .success(let value):
+-                let json = JSON(value)
+-                //print("1 - \(json)")
+-                let result: Dictionary<String, JSON> = json["magic"].dictionaryValue
+-                let result2: String = result["answer"]!.stringValue
+-                print("2 - \(result2)")
+-                self.messageFromAPI.text = result2
+-            case .failure(let error):
+-                print(error)
+-            }
+-            
+-        }
+-    }
+ 
+     @IBOutlet weak var Message: UILabel!
+     @IBOutlet weak var messageFromAPI: UILabel!
+     @IBOutlet weak var statusNetwork: UILabel!
+     
++    // создание таймера для проверки подключения к сети
+     var timer : Timer?
+     
+     func updateTimer(){
+-        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(checkNetwork), userInfo: nil, repeats: true)
++        timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(checkNetwork2), userInfo: nil, repeats: true)
+     }
+     
+     override func viewDidLoad() {
+         super.viewDidLoad()
+-        //updateTimer()
+-        checkNetwork()
++        game = Game() //defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)
+         print("viewDidLoad")
+-//        Parser(url: url, parameters: param)
++        updateTimer()
+     }
+     
+     override func viewWillAppear(_ animated: Bool) {
+         super.viewWillAppear(true)
+         print("viewWillAppear")
+-        updateTimer()
++        statusNetwork.text = game.checkNetwork()
++        game.message = message
+     }
+     
+     override func viewDidAppear(_ animated: Bool) {
+         super.viewDidAppear(true)
+-        //updateTimer()
+         print("ViewDidAppear")
++        game.Parser()
+     }
+ 
+     override var canBecomeFirstResponder: Bool{
+@@ -116,22 +72,9 @@ class ViewController: UIViewController, ViewControllerDelegate {
+     
+     var count: Int = 0
+     var message: [String] = []
+-    //var answer: String = ""
+-    let url: String = "https://8ball.delegator.com/magic/JSON/%3Cquestion_string%3E"
+-    let question: String = ""
+-    let answer: String = ""
+-    let type: String = ""
+-    let magic: String = ""
+     var defaults = UserDefaults.standard
+     
+-//    override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+-//        if motion == .motionShake{
+-//            print("Finish shake")
+-//            count += 1
+-//            Message.text = "You finish shake me \(count) times"
+-//        }
+-//    }
+-    
++    // Связь с SettingViewController
+     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+         if let SettincgVC = segue.destination as? SettingViewController{
+             SettincgVC.ArrMessage = message
+@@ -140,27 +83,27 @@ class ViewController: UIViewController, ViewControllerDelegate {
+     }
+     
+     override func motionBegan(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+-        //print("Start shake")
+-//        var text :String = Message.text!
+-        //checkNetwork()
+         update(arrMessage: message)
++        game.message = message
+         count += 1
+-        if !message.isEmpty{
+-            //Message.text = "\(message[count-1]) "
+-            Message.text = "\(defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)"
++        if game.isConnected{
++            game.Parser()
++            messageFromAPI.text = game.messageFromAPI
++        }
++        if !game.message.isEmpty{
++            Message.text = "\(game.message[count - 1])"
++            print("count - \(game.message.count)")
++            //Message.text = "\(defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)"
+         } else {
+             Message.text = "go to Setting and add your first message";
++            count = 0
+         }
+         //Message.text = "\(message[count-1]) "
+-        print(defaults.string(forKey: MessagesUserDefaults.KeyNoConnectionMessage)!)
+-        if count == message.count {
++        print("game.message - \(game.message)")
++        print(game.message.isEmpty)
++        if count == game.message.count {
+             count = 0
+         }
+-        let param = ["question": question,
+-                    "answer" : answer,
+-                    "type": type ]
+-        //let param2 = ["magic": param]
+-        Parser(url: url, parameters: param)
+     }
+ 
+ }
+diff --git a/shakeApp b/shakeApp
+deleted file mode 160000
+index 1a48b51..0000000
+--- a/shakeApp
++++ /dev/null
+@@ -1 +0,0 @@
+-Subproject commit 1a48b51aa661d2383864a0b16c693a4bd3fd9454
